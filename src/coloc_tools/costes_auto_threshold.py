@@ -12,14 +12,6 @@ class Implementation(Enum):
     BISECTION = "Bisection"
 
 
-class ThresholdMode(Enum):
-    """Threshold modes for Pearson calculation."""
-
-    NONE = "None"
-    BELOW = "Below"
-    ABOVE = "Above"
-
-
 class Stepper(ABC):
     """Abstract base class for threshold stepping algorithms."""
 
