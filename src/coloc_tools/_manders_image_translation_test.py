@@ -14,8 +14,9 @@ def manders_image_translation_randomization(
     """
     Perform image translation randomization test for Manders' coefficients validation.
 
-    This method applies random translations (shifts) to one channel relative to the other,
-    breaking spatial relationships while preserving intensity distributions and local patterns.
+    This method applies random translations (shifts) to one channel relative to the
+    other, breaking spatial relationships while preserving intensity distributions
+    and local patterns.
 
     Parameters
     ----------

@@ -58,7 +58,7 @@ def manders_image_rotation_test(
         return padded
 
     def _rotate_and_flip_image(
-        image: np.ndarray, rotation: int, flip_type: str
+        image: np.ndarray, rotation: int, flip_type: str | None
     ) -> np.ndarray:
         """Rotate image by specified angle and optionally flip."""
         # Apply rotation (k=1 means 90°, k=2 means 180°, k=3 means 270°)
