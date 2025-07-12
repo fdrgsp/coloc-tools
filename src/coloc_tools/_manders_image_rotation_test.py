@@ -1,4 +1,5 @@
 import numpy as np
+from _manders_correlation_coefficient import manders_correlation_coefficient
 
 
 def manders_image_rotation_test(
@@ -56,27 +57,6 @@ def manders_image_rotation_test(
 
         return padded
 
-    def _calculate_manders(
-        ch1: np.ndarray, ch2: np.ndarray, thresh_ch1: float, thresh_ch2: float
-    ) -> tuple[float, float]:
-        """Helper function to calculate Manders' correlation coefficients."""
-        # Apply thresholds and get overlap mask
-        mask_a = ch1 > thresh_ch1
-        mask_b = ch2 > thresh_ch2
-        overlap_mask = mask_a & mask_b
-
-        # Calculate M1: fraction of A overlapping with B
-        m1_numerator = np.sum(ch1[overlap_mask])
-        m1_denominator = np.sum(ch1[mask_a])
-        m1 = m1_numerator / m1_denominator if m1_denominator > 0 else 0.0
-
-        # Calculate M2: fraction of B overlapping with A
-        m2_numerator = np.sum(ch2[overlap_mask])
-        m2_denominator = np.sum(ch2[mask_b])
-        m2 = m2_numerator / m2_denominator if m2_denominator > 0 else 0.0
-
-        return m1, m2
-
     def _rotate_and_flip_image(
         image: np.ndarray, rotation: int, flip_type: str
     ) -> np.ndarray:
@@ -105,7 +85,7 @@ def manders_image_rotation_test(
         channel_2_padded = channel_2
 
     # Calculate observed Manders' coefficients
-    observed_m1, observed_m2 = _calculate_manders(
+    observed_m1, observed_m2 = manders_correlation_coefficient(
         channel_1_padded, channel_2_padded, threshold_ch1, threshold_ch2
     )
 
@@ -131,7 +111,7 @@ def manders_image_rotation_test(
         transformed_ch2 = _rotate_and_flip_image(channel_2_padded, rotation, flip_type)
 
         # Calculate Manders' coefficients with transformed channel 2
-        rotation_m1, rotation_m2 = _calculate_manders(
+        rotation_m1, rotation_m2 = manders_correlation_coefficient(
             channel_1_padded, transformed_ch2, threshold_ch1, threshold_ch2
         )
         rotation_m1_values.append(rotation_m1)
