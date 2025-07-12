@@ -1,5 +1,6 @@
 import numpy as np
-from _manders_correlation_coefficient import manders_correlation_coefficient
+
+from ._manders_correlation_coefficient import manders_correlation_coefficient
 
 
 def manders_image_rotation_test(
