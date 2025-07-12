@@ -12,7 +12,10 @@ from ._costes_auto_threshold import (
 )
 from ._costes_pixel_randomization import costes_pixel_randomization
 from ._manders_correlation_coefficient import manders_correlation_coefficient
-from ._manders_image_rotation_test import manders_image_rotation_test
+from ._manders_image_rotation_test import (
+    manders_image_rotation_test,
+    manders_image_rotation_test_plot,
+)
 from ._manders_image_translation_test import manders_image_translation_randomization
 
 __all__ = [
@@ -25,5 +28,6 @@ __all__ = [
     "fiji_costes_auto_threshold",
     "manders_correlation_coefficient",
     "manders_image_rotation_test",
+    "manders_image_rotation_test_plot",
     "manders_image_translation_randomization",
 ]

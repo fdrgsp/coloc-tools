@@ -51,17 +51,6 @@ test = [
     "pytest-cov>=6.1.1",
 ]
 
-[dependency-groups]
-dev = [
-    "mypy>=1.15.0",
-    "ruff>=0.11.8",
-    "pre-commit-uv >=4.1.0",
-]
-test = [
-    "pytest>=8.3.5",
-    "pytest-cov>=6.1.1",
-]
-
 [project.urls]
 Homepage = "https://github.com/fdrgsp/coloc_tools"
 Repository = "https://github.com/fdrgsp/coloc_tools"
