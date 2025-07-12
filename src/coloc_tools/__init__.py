@@ -3,7 +3,10 @@
 __version__ = "0.1.0"
 
 from ._costes_auto_threshold import (
+    AutoThresholdRegression,
+    BisectionStepper,
     Implementation,
+    SimpleStepper,
     fiji_bisection_auto_threshold,
     fiji_costes_auto_threshold,
 )
@@ -13,7 +16,10 @@ from ._manders_image_rotation_test import manders_image_rotation_test
 from ._manders_image_translation_test import manders_image_translation_randomization
 
 __all__ = [
+    "AutoThresholdRegression",
+    "BisectionStepper",
     "Implementation",
+    "SimpleStepper",
     "costes_pixel_randomization",
     "fiji_bisection_auto_threshold",
     "fiji_costes_auto_threshold",
