@@ -36,7 +36,8 @@ keywords = ["colocalization", "image-analysis", "thresholding", "costes", "micro
 requires-python = ">=3.9"
 dependencies = [
     "numpy",
-    "tifffile"
+    "tifffile",
+    "matplotlib"
 ]
 
 [project.optional-dependencies]
