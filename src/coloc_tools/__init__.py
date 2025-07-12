@@ -1,14 +1,18 @@
 """Coloc Tools - Tools for colocalization analysis."""
 
+from __future__ import annotations
+
 __version__ = "0.1.0"
 
 from ._costes_auto_threshold import (
     AutoThresholdRegression,
     BisectionStepper,
     Implementation,
+    PCAStepper,
     SimpleStepper,
     fiji_bisection_auto_threshold,
     fiji_costes_auto_threshold,
+    pca_auto_threshold,
 )
 from ._costes_pixel_randomization import costes_pixel_randomization
 from ._manders_correlation_coefficient import manders_correlation_coefficient
@@ -22,6 +26,7 @@ __all__ = [
     "AutoThresholdRegression",
     "BisectionStepper",
     "Implementation",
+    "PCAStepper",
     "SimpleStepper",
     "costes_pixel_randomization",
     "fiji_bisection_auto_threshold",
@@ -30,4 +35,5 @@ __all__ = [
     "manders_image_rotation_test",
     "manders_image_rotation_test_plot",
     "manders_image_translation_randomization",
+    "pca_auto_threshold",
 ]

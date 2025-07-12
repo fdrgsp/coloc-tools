@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import math
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -10,6 +12,7 @@ class Implementation(Enum):
 
     COSTES = "Costes"
     BISECTION = "Bisection"
+    PCA = "PCA"
 
 
 class Stepper(ABC):
@@ -126,6 +129,145 @@ class SimpleStepper(Stepper):
         return self.finished
 
 
+class PCAStepper(Stepper):
+    """PCA-based stepper for systematic threshold exploration along principal component.
+
+    This implementation uses PCA to find the principal component direction and then
+    systematically tests threshold points along this direction to find the global
+    minimum correlation. It ensures symmetric results regardless of channel order.
+
+    Unlike other steppers, this one requires special handling in the regression loop
+    since it doesn't follow the traditional single-threshold stepping pattern.
+    """
+
+    def __init__(
+        self, ch1_flat: np.ndarray, ch2_flat: np.ndarray, num_thresholds: int = 100
+    ):
+        """Initialize PCA stepper with data for PCA calculation.
+
+        Parameters
+        ----------
+        ch1_flat : np.ndarray
+            Flattened channel 1 data
+        ch2_flat : np.ndarray
+            Flattened channel 2 data
+        num_thresholds : int
+            Number of threshold values to test along the principal component
+        """
+        self.ch1_flat = ch1_flat
+        self.ch2_flat = ch2_flat
+        self.num_thresholds = num_thresholds
+
+        # Filter out zero pixels if present
+        if np.min(ch1_flat) == 0 or np.min(ch2_flat) == 0:
+            mask = (ch1_flat > 0) & (ch2_flat > 0)
+            self.ch1_masked = ch1_flat[mask]
+            self.ch2_masked = ch2_flat[mask]
+        else:
+            self.ch1_masked = ch1_flat
+            self.ch2_masked = ch2_flat
+
+        if len(self.ch1_masked) == 0 or len(self.ch2_masked) == 0:
+            self.finished = True
+            self.best_ch1_threshold = 0
+            self.best_ch2_threshold = 0
+            return
+
+        # Initialize iteration variables first
+        self.current_index = 0
+        self.best_correlation = 1.0
+        self.best_ch1_threshold = 0
+        self.best_ch2_threshold = 0
+        self.current_ch1_threshold = 0
+        self.current_ch2_threshold = 0
+        self.finished = False
+
+        # Perform PCA setup
+        self._setup_pca()
+
+    def _setup_pca(self) -> None:
+        """Set up PCA and generate threshold candidates."""
+        # Center the data
+        self.ch1_mean = np.mean(self.ch1_masked)
+        self.ch2_mean = np.mean(self.ch2_masked)
+        ch1_centered = self.ch1_masked - self.ch1_mean
+        ch2_centered = self.ch2_masked - self.ch2_mean
+
+        # Perform PCA to find the orthogonal regression line
+        data = np.vstack([ch1_centered, ch2_centered]).T
+        cov_matrix = np.cov(data.T)
+        eigenvalues, eigenvectors = np.linalg.eigh(cov_matrix)
+
+        # The first principal component is the eigenvector with largest eigenvalue
+        principal_component = eigenvectors[:, np.argmax(eigenvalues)]
+
+        # Normalize the principal component
+        self.pc_norm = principal_component / np.linalg.norm(principal_component)
+
+        # Project all points onto the principal component line
+        projections = ch1_centered * self.pc_norm[0] + ch2_centered * self.pc_norm[1]
+
+        # Generate threshold parameters along the line
+        proj_min, proj_max = np.min(projections), np.max(projections)
+        self.t_values = np.linspace(proj_max, proj_min, self.num_thresholds)
+
+        # Set initial threshold
+        if len(self.t_values) > 0:
+            self._advance_to_next_valid_threshold()
+
+    def _advance_to_next_valid_threshold(self) -> None:
+        """Advance to the next valid threshold in the sequence."""
+        while self.current_index < len(self.t_values):
+            t = self.t_values[self.current_index]
+            ch1_thresh = self.ch1_mean + t * self.pc_norm[0]
+            ch2_thresh = self.ch2_mean + t * self.pc_norm[1]
+
+            # Check if threshold is within valid data range
+            if (
+                ch1_thresh >= np.min(self.ch1_masked)
+                and ch1_thresh <= np.max(self.ch1_masked)
+                and ch2_thresh >= np.min(self.ch2_masked)
+                and ch2_thresh <= np.max(self.ch2_masked)
+            ):
+                self.current_ch1_threshold = ch1_thresh
+                self.current_ch2_threshold = ch2_thresh
+                return
+
+            self.current_index += 1
+
+        # No more valid thresholds
+        self.finished = True
+
+    def update(self, value: float) -> None:
+        """Update with correlation value and track best threshold."""
+        if not math.isnan(value) and abs(value) < abs(self.best_correlation):
+            # Track best correlation (closest to zero)
+            self.best_correlation = value
+            self.best_ch1_threshold = self.current_ch1_threshold
+            self.best_ch2_threshold = self.current_ch2_threshold
+
+        # Move to next threshold
+        self.current_index += 1
+        if not self.is_finished():
+            self._advance_to_next_valid_threshold()
+
+    def get_value(self) -> float:
+        """Get current working threshold (returns ch1 threshold for compatibility)."""
+        return self.current_ch1_threshold
+
+    def is_finished(self) -> bool:
+        """Check if all thresholds have been tested."""
+        return self.current_index >= len(self.t_values)
+
+    def get_current_thresholds(self) -> tuple[float, float]:
+        """Get current threshold pair (ch1, ch2)."""
+        return self.current_ch1_threshold, self.current_ch2_threshold
+
+    def get_best_thresholds(self) -> tuple[float, float]:
+        """Get the best thresholds found so far."""
+        return self.best_ch1_threshold, self.best_ch2_threshold
+
+
 class ChannelMapper(ABC):
     """Interface for mapping working threshold to channel thresholds."""
 
@@ -184,9 +326,10 @@ class AutoThresholdRegression:
     This is similar to Fiji's `AutoThresholdRegression` implementation:
     https://github.com/fiji/Colocalisation_Analysis/blob/master/src/main/java/sc/fiji/coloc/algorithms/BisectionStepper.java
 
-    Two implementations are available:
+    Three implementations are available:
     - BISECTION: Uses BisectionStepper for iterative threshold convergence (default).
-    - COSTES: Uses SimpleStepper
+    - COSTES: Uses SimpleStepper (matches original FIJI JACOP behavior)
+    - PCA: Uses PCAStepper for systematic exploration along principal component
     """
 
     def __init__(self, implementation: Implementation = Implementation.BISECTION):
@@ -239,8 +382,8 @@ class AutoThresholdRegression:
             raise MissingPreconditionException("Too few pixels below thresholds")
 
         # Use NumPy's correlation coefficient calculation
-        correlation_matrix = np.corrcoef(ch1_below, ch2_below)
-        pearsons_r: float = float(correlation_matrix[0, 1])
+        correlation_matrix = np.corrcoef(ch1_below.ravel(), ch2_below.ravel())
+        pearsons_r: float = correlation_matrix[0, 1]
 
         # Sanity check
         if np.isnan(pearsons_r) or np.isinf(pearsons_r):
@@ -333,10 +476,14 @@ class AutoThresholdRegression:
 
         Determines which channel to use for threshold walking based on slope value.
         """
-        # Determine which channel to use for threshold walking - EXACT FIJI logic
-        mapper: ChannelMapper
-        stepper: Stepper
+        # Handle PCA implementation separately
+        if self.implementation == Implementation.PCA:
+            # For PCA, we create a dummy mapper since PCAStepper handles both thresholds
+            mapper: ChannelMapper = ChannelMapperCh1(slope, intercept)
+            stepper: Stepper = PCAStepper(ch1_flat, ch2_flat, num_thresholds=100)
+            return mapper, stepper
 
+        # Determine which channel to use for threshold walking - EXACT FIJI logic
         if slope > -1 and slope < 1.0:
             # Map working threshold to channel one
             mapper = ChannelMapperCh1(slope, intercept)
@@ -368,6 +515,10 @@ class AutoThresholdRegression:
         ch2_flat: np.ndarray,
     ) -> tuple[float, float]:
         """Perform the threshold regression using the stepper and mapper."""
+        # Handle PCA implementation separately
+        if self.implementation == Implementation.PCA:
+            return self._perform_pca_threshold_regression(stepper, ch1_flat, ch2_flat)
+
         # Get min and max values for clamping
         min_val = 0.0  # Assuming typical image data
         max_val = 65535.0  # Assuming 16-bit data, adjust as needed
@@ -399,6 +550,48 @@ class AutoThresholdRegression:
                 stepper.update(float("nan"))
 
         return ch1_thresh_max, ch2_thresh_max
+
+    def _perform_pca_threshold_regression(
+        self,
+        stepper: Stepper,
+        ch1_flat: np.ndarray,
+        ch2_flat: np.ndarray,
+    ) -> tuple[float, float]:
+        """Perform PCA-based threshold regression."""
+        # Cast to PCAStepper for type safety
+        pca_stepper = stepper
+        if not isinstance(pca_stepper, PCAStepper):
+            raise ValueError("Expected PCAStepper for PCA implementation")
+
+        # PCA stepper handles the threshold iteration differently
+        while not pca_stepper.is_finished():
+            # Get current threshold pair from PCA stepper
+            ch1_thresh, ch2_thresh = pca_stepper.get_current_thresholds()
+
+            # Create mask for pixels below thresholds
+            below_mask = (ch1_flat < ch1_thresh) & (ch2_flat < ch2_thresh)
+
+            if np.sum(below_mask) < 10:  # Need minimum number of pixels
+                pca_stepper.update(float("nan"))
+                continue
+
+            # Calculate correlation for pixels below threshold
+            ch1_below = ch1_flat[below_mask]
+            ch2_below = ch2_flat[below_mask]
+
+            if len(ch1_below) > 1 and np.std(ch1_below) > 0 and np.std(ch2_below) > 0:
+                try:
+                    correlation = np.corrcoef(ch1_below.ravel(), ch2_below.ravel())[
+                        0, 1
+                    ]
+                    pca_stepper.update(correlation)
+                except Exception:
+                    pca_stepper.update(float("nan"))
+            else:
+                pca_stepper.update(float("nan"))
+
+        # Return the best thresholds found
+        return pca_stepper.get_best_thresholds()
 
     def _store_results_and_warnings(
         self,
@@ -597,4 +790,32 @@ def fiji_bisection_auto_threshold(
         ch1_threshold, ch2_threshold, slope, intercept
     """
     auto_threshold = AutoThresholdRegression(Implementation.BISECTION)
+    return auto_threshold.execute(ch1, ch2, mask)
+
+
+def pca_auto_threshold(
+    ch1: np.ndarray, ch2: np.ndarray, mask: np.ndarray | None = None
+) -> tuple[float, float, float, float]:
+    """
+    Convenience function using PCA implementation for systematic threshold exploration.
+
+    Uses Principal Component Analysis to find the optimal regression line direction
+    and systematically explores thresholds along this line to find the global minimum
+    correlation. This approach ensures symmetric results regardless of channel order.
+
+    Parameters
+    ----------
+    ch1 : np.ndarray
+        First channel image data
+    ch2 : np.ndarray
+        Second channel image data
+    mask : np.ndarray, optional
+        Binary mask for the images
+
+    Returns
+    -------
+    tuple[float, float, float, float]
+        ch1_threshold, ch2_threshold, slope, intercept
+    """
+    auto_threshold = AutoThresholdRegression(Implementation.PCA)
     return auto_threshold.execute(ch1, ch2, mask)

@@ -1,5 +1,7 @@
 """Test imports for all modules in the coloc_tools package."""
 
+from __future__ import annotations
+
 import sys
 
 
@@ -18,14 +20,14 @@ def test_all_package_functions():
             func = getattr(coloc_tools, func_name, None)
 
             # Verify it exists
-            assert (
-                func is not None
-            ), f"Function '{func_name}' listed in __all__ but not available"
+            assert func is not None, (
+                f"Function '{func_name}' listed in __all__ but not available"
+            )
 
             # Verify it's callable
-            assert callable(
-                func
-            ), f"'{func_name}' should be callable but is {type(func)}"
+            assert callable(func), (
+                f"'{func_name}' should be callable but is {type(func)}"
+            )
 
             print(f"✓ Successfully imported and verified: {func_name}")
 

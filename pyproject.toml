@@ -89,7 +89,7 @@ ignore = [
 docstring-code-format = true
 
 [tool.mypy]
-files = "src/**/"
+files = ["src/**/"]
 strict = true
 disallow_any_generics = false
 disallow_subclassing_any = false

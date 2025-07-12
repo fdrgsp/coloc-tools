@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 
 
@@ -103,7 +105,7 @@ def costes_auto_threshold(
         ch2_below = ch2_masked[below_mask]
 
         if len(ch1_below) > 1 and np.std(ch1_below) > 0 and np.std(ch2_below) > 0:
-            correlation = np.corrcoef(ch1_below, ch2_below)[0, 1]
+            correlation = np.corrcoef(ch1_below.ravel(), ch2_below.ravel())[0, 1]
 
             # Find threshold where correlation is closest to zero
             if abs(correlation) < abs(best_correlation):

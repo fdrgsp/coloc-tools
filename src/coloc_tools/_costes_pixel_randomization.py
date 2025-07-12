@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -67,7 +69,9 @@ def costes_pixel_randomization(
             plt.show()
 
         # Calculate correlation with randomized channel
-        random_corr = np.corrcoef(channel_1.ravel(), randomized_channel_2.ravel())[0, 1]
+        random_corr = float(
+            np.corrcoef(channel_1.ravel(), randomized_channel_2.ravel())[0, 1]
+        )
         random_correlations.append(random_corr)
 
     # Calculate p-value: fraction of random correlations >= observed correlation
