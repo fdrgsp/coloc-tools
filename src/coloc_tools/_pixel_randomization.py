@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def costes_pixel_randomization(
+def pixel_randomization(
     channel_1: np.ndarray,
     channel_2: np.ndarray,
     n_iterations: int = 500,
