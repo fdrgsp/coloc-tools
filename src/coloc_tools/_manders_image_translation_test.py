@@ -41,10 +41,10 @@ def manders_image_translation_randomization(
     Returns
     -------
     Tuple containing:
-        - List[float]: M1 coefficients from randomized iterations (A overlap with B)
-        - List[float]: M2 coefficients from randomized iterations (B overlap with A)
         - float: Observed M1 coefficient
         - float: Observed M2 coefficient
+        - List[float]: M1 coefficients from randomized iterations (A overlap with B)
+        - List[float]: M2 coefficients from randomized iterations (B overlap with A)
         - float: P-value for M1 (fraction of random M1 >= observed M1)
         - float: P-value for M2 (fraction of random M2 >= observed M2)
     """
